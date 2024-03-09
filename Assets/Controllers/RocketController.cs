@@ -10,7 +10,7 @@ using UnityEditor;
 
 public class RocketController : MonoBehaviour
 {
-    public SerialController sc;
+    public RocketSerialController sc;
     public UIManager uiManager;
     private bool alt_req_rec = false;
     private CSVDataWriter serialLog;
@@ -22,60 +22,55 @@ public class RocketController : MonoBehaviour
     private float lerpDuration = 1f;
     public GameObject payloadCoupler;
     public GameObject motorCoupler;
+    public GameObject payloadCouplerDistanceRef;
+    public GameObject motorCouplerDistanceSensor;
     public int payloadCouplerDirection = 0;
-
-    // Start is called before the first frame update
-    void Start()
-    {
-        // serialLog = new CSVDataWriter("SerialLog", "Time", "Message");
-    }
+    float startTime=0;
 
     void FixedUpdate()
-{
-    if (isFollowingData && currentIndex < positions.Count - 1)
     {
-        float targetTime = positions[currentIndex + 1].x;
-        if (Time.time >= targetTime)
+        if (isFollowingData && currentIndex < positions.Count - 1)
         {
-            currentIndex++;
-            lerpTime = 0f;
-            //Define the lerpduration as the difference between the current and next time
-            lerpDuration = positions[currentIndex].x - positions[currentIndex - 1].x;
-        }
-
-        if (currentIndex < positions.Count - 1)
-        {
-            // Interpolate between the current and next position
-            Vector3 startPosition = positions[currentIndex];
-            Vector3 endPosition = positions[currentIndex + 1];
-            lerpTime += Time.deltaTime;
-            float progress = lerpTime / lerpDuration;
-            transform.position = Vector3.Lerp(startPosition, endPosition, progress);
-
-            // Look towards the next point with the y-axis
-            Vector3 direction = endPosition - startPosition;
-            if (direction != Vector3.zero)
+            float targetTime = positions[currentIndex + 1].x;
+            if ((Time.time-startTime) >= targetTime)
             {
-                // direction = new Vector3(direction.y, direction.x, direction.z); // Swap x and y for rotation
-                Quaternion targetRotation = Quaternion.LookRotation(direction, Vector3.up);
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, progress);
+                currentIndex++;
+                lerpTime = 0f;
+                //Define the lerpduration as the difference between the current and next time
+                lerpDuration = positions[currentIndex].x - positions[currentIndex - 1].x;
+            }
+
+            if (currentIndex < positions.Count - 1)
+            {
+                // Interpolate between the current and next position
+                Vector3 startPosition = positions[currentIndex];
+                Vector3 endPosition = positions[currentIndex + 1];
+                lerpTime += Time.deltaTime;
+                float progress = lerpTime / lerpDuration;
+                transform.position = Vector3.Lerp(startPosition, endPosition, progress);
+
+                // Look towards the next point with the y-axis
+                Vector3 direction = endPosition - startPosition;
+                if (direction != Vector3.zero)
+                {
+                    // direction = new Vector3(direction.y, direction.x, direction.z); // Swap x and y for rotation
+                    Quaternion targetRotation = Quaternion.LookRotation(direction, Vector3.up);
+                    transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, progress);
+                }
             }
         }
-    }
-    //if finished following data, enable gravity
-    else if(currentIndex == positions.Count - 1)
-    {
-        GetComponent<Rigidbody>().useGravity = true;
-    }
-    
-}
+        //if finished following data, enable gravity
+        else if(currentIndex == positions.Count - 1)
+        {
+            GetComponent<Rigidbody>().useGravity = true;
+        }
 
-
+    }
 
     // Update is called once per frame
     void Update()
     {
-        while (SerialController.messageQueue.TryDequeue(out string message))
+        while (RocketSerialController.messageQueue.TryDequeue(out string message))
         {
             ProcessMessage(message, sc);
         }
@@ -95,7 +90,7 @@ public class RocketController : MonoBehaviour
         else if (payloadCouplerDirection > 0)
         {
             Vector3 dir = payloadCoupler.transform.position - transform.position;
-            payloadCoupler.transform.position += dir.normalized * Time.deltaTime * 0.2f;
+            payloadCoupler.transform.position += dir.normalized * Time.deltaTime * 0.3f;
         }
         //If direction is 0, stop the payloadCoupler
         else
@@ -110,13 +105,25 @@ public class RocketController : MonoBehaviour
         GetComponent<Rigidbody>().AddForce(transform.forward * thrust);
     }
 
-    public void ProcessMessage(string message, SerialController serialController)
+    public void ProcessMessage(string message, RocketSerialController serialController)
     {
         if (message == "FAKE_ALT:GET")
         {
             var altitude = transform.position.y;
             // Round it
             altitude = (float)Math.Round(altitude, 2);
+            //Add some noise and sometimes an outlier
+            //there's a 5% chance of an outlier
+            //There's a 10% chance of noise
+            if (UnityEngine.Random.value < 0.05f)
+            {
+                altitude += 100;
+            }
+            else if (UnityEngine.Random.value < 0.1f)
+            {
+                altitude += UnityEngine.Random.Range(-10, 10);
+            }
+
             // Save altitude to the log as floats
             // serialLog.WriteData(new List<float> { Time.time, altitude });
             byte[] altitudeBytes = BitConverter.GetBytes(altitude);
@@ -134,10 +141,8 @@ public class RocketController : MonoBehaviour
         //Process distance sensor message
         if (message=="DISTANCE_SENSOR:GET")
         {
-            Debug.Log("Distance sensor message received");
-
-            Vector3 motorCouplerPos = motorCoupler.transform.position;
-            Vector3 payloadCouplerPos = payloadCoupler.transform.position;
+            Vector3 motorCouplerPos = motorCouplerDistanceSensor.transform.position;
+            Vector3 payloadCouplerPos = payloadCouplerDistanceRef.transform.position;
 
             float x_diff = motorCouplerPos.x - payloadCouplerPos.x;
             float y_diff = motorCouplerPos.y - payloadCouplerPos.y;
@@ -147,7 +152,6 @@ public class RocketController : MonoBehaviour
             float distance = Mathf.Sqrt(x_diff * x_diff + y_diff * y_diff + z_diff * z_diff);
 
             float distanceMillimeters = distance * 1000;
-            
 
             // Convert to uint16_t (ushort in C#)
             ushort distanceUInt16 = (ushort)distanceMillimeters;
@@ -198,6 +202,7 @@ public class RocketController : MonoBehaviour
     public void FollowData()
     {
         GetComponent<Rigidbody>().useGravity = false;
+        startTime = Time.time;
         isFollowingData = true;
         currentIndex = 0;
         lerpTime = 0f;

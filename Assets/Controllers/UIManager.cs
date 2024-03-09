@@ -21,7 +21,7 @@ public class UIManager : MonoBehaviour
 
     void Update()
     {
-        while (SerialController.uiParamsQueue.TryDequeue(out UIParams uiParams))
+        while (RocketSerialController.uiParamsQueue.TryDequeue(out UIParams uiParams))
         {
             UpdateAltitudeAndState(uiParams);
         }
