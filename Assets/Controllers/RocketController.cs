@@ -32,6 +32,10 @@ public class RocketController : MonoBehaviour
     private float maxSpeedRev =0.1f; // Maximum speed
     private float acceleration = 0.05f; // Rate of acceleration
     private float deceleration = 0.3f; // Rate of deceleration
+    public bool altimeterOn = true;
+    void Start(){
+        altimeterOn = true;
+    }
     void FixedUpdate()
     {
         if (isFollowingData && currentIndex < positions.Count - 1)
@@ -128,29 +132,31 @@ public class RocketController : MonoBehaviour
     {
         if (message == "FAKE_ALT:GET")
         {
-            var altitude = transform.position.y;
-            // Round it
-            altitude = (float)Math.Round(altitude, 2);
-            //Add some noise and sometimes an outlier
-            //there's a 5% chance of an outlier
-            //There's a 10% chance of noise
-            if (UnityEngine.Random.value < 0.02f)
-            {
-                //Random range from 100 to 1000
-                altitude += UnityEngine.Random.Range(100, 1000);
-            }
-            else if (UnityEngine.Random.value < 0.1f)
-            {
-                altitude += UnityEngine.Random.Range(-10, 10);
-            }
+            if(altimeterOn){
+                var altitude = transform.position.y;
+                // Round it
+                altitude = (float)Math.Round(altitude, 2);
+                //Add some noise and sometimes an outlier
+                //there's a 5% chance of an outlier
+                //There's a 10% chance of noise
+                if (UnityEngine.Random.value < 0.02f)
+                {
+                    //Random range from 100 to 1000
+                    altitude += UnityEngine.Random.Range(100, 1000);
+                }
+                else if (UnityEngine.Random.value < 0.1f)
+                {
+                    altitude += UnityEngine.Random.Range(-10, 10);
+                }
 
-            // Save altitude to the log as floats
-            // serialLog.WriteData(new List<float> { Time.time, altitude });
-            byte[] altitudeBytes = BitConverter.GetBytes(altitude);
-            byte[] response = new byte[1 + altitudeBytes.Length];
-            response[0] = 0x02; // Response code for altitude
-            Array.Copy(altitudeBytes, 0, response, 1, altitudeBytes.Length);
-            serialController.WriteSerialAsync(response);
+                // Save altitude to the log as floats
+                // serialLog.WriteData(new List<float> { Time.time, altitude });
+                byte[] altitudeBytes = BitConverter.GetBytes(altitude);
+                byte[] response = new byte[1 + altitudeBytes.Length];
+                response[0] = 0x02; // Response code for altitude
+                Array.Copy(altitudeBytes, 0, response, 1, altitudeBytes.Length);
+                serialController.WriteSerialAsync(response);
+            }
         }
         if(message.StartsWith("DC_MOTOR")){
             //Get the direction
@@ -171,10 +177,12 @@ public class RocketController : MonoBehaviour
 
             float distanceMillimeters = distance * 1000;
             //There is a 2% chance of an outlier, and a 5% chance of noise
-            if (UnityEngine.Random.value < 0.01f)
+            if (UnityEngine.Random.value < 0.02f)
             {
                 //Random range from 1000 to 10000
-                distanceMillimeters += UnityEngine.Random.Range(1000, 10000);
+                //50/50 chance of positive or negative
+
+                distanceMillimeters += UnityEngine.Random.Range(1000, 10000)* (UnityEngine.Random.value < 0.5f ? 1 : -1);
             }
             else if (UnityEngine.Random.value < 0.1f)
             {
