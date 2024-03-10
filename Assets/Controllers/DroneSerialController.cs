@@ -14,8 +14,11 @@ public class DroneSerialController : SerialController
 
     // ConcurrentQueue for thread-safe communication
     public static ConcurrentQueue<string> messageQueue = new ConcurrentQueue<string>();
+
     public static ConcurrentQueue<float> altitudeQueue = new ConcurrentQueue<float>();
+
     public static ConcurrentQueue<UIParams> uiParamsQueue = new ConcurrentQueue<UIParams>();
+
 
     public override async void ReadSerialAsync()
     {

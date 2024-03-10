@@ -26,7 +26,12 @@ public class RocketController : MonoBehaviour
     public GameObject motorCouplerDistanceSensor;
     public int payloadCouplerDirection = 0;
     float startTime=0;
-
+    KalmanFilter filter = new KalmanFilter(0.1, 0.1, 1.0, 20.0);
+    private float speed = 0f; // Current speed of the payload coupler
+    private float maxSpeedFwd = 0.6f; // Maximum speed
+    private float maxSpeedRev =0.1f; // Maximum speed
+    private float acceleration = 0.05f; // Rate of acceleration
+    private float deceleration = 0.3f; // Rate of deceleration
     void FixedUpdate()
     {
         if (isFollowingData && currentIndex < positions.Count - 1)
@@ -81,22 +86,30 @@ public class RocketController : MonoBehaviour
     {
         if (payloadCouplerDirection < 0)
         {
-            // payloadCoupler.transform.localPosition += transform.forward * Time.deltaTime * 0.2f;
-            //Move paylod coupler away form the center of the rocket
-            Vector3 dir = payloadCoupler.transform.position - transform.position;
-            payloadCoupler.transform.position -= dir.normalized * Time.deltaTime * 0.1f;
+            // Accelerate towards negative direction, but cap at maxSpeed
+            speed = Mathf.Max(-maxSpeedRev, speed - acceleration * Time.deltaTime);
         }
-        //If direction is > add transform.forward to the payloadCoupler local position
         else if (payloadCouplerDirection > 0)
         {
-            Vector3 dir = payloadCoupler.transform.position - transform.position;
-            payloadCoupler.transform.position += dir.normalized * Time.deltaTime * 0.3f;
+            // Accelerate towards positive direction, but cap at maxSpeed
+            speed = Mathf.Min(maxSpeedFwd, speed + acceleration * Time.deltaTime);
         }
-        //If direction is 0, stop the payloadCoupler
         else
         {
-            payloadCoupler.transform.localPosition = payloadCoupler.transform.localPosition;
+            // Decelerate to a stop
+            if (speed > 0)
+            {
+                speed = Mathf.Max(0, speed - deceleration * Time.deltaTime);
+            }
+            else if (speed < 0)
+            {
+                speed = Mathf.Min(0, speed + deceleration * Time.deltaTime);
+            }
         }
+
+        // Move the payload coupler based on the current speed
+        Vector3 dir = payloadCoupler.transform.position - transform.position;
+        payloadCoupler.transform.position += dir.normalized * Time.deltaTime * speed;
     }
 
     public void AddThrust(float thrust)
@@ -115,9 +128,10 @@ public class RocketController : MonoBehaviour
             //Add some noise and sometimes an outlier
             //there's a 5% chance of an outlier
             //There's a 10% chance of noise
-            if (UnityEngine.Random.value < 0.05f)
+            if (UnityEngine.Random.value < 0.02f)
             {
-                altitude += 100;
+                //Random range from 100 to 1000
+                altitude += UnityEngine.Random.Range(100, 1000);
             }
             else if (UnityEngine.Random.value < 0.1f)
             {
@@ -135,8 +149,6 @@ public class RocketController : MonoBehaviour
         if(message.StartsWith("DC_MOTOR")){
             //Get the direction
             payloadCouplerDirection = int.Parse(message.Split(':')[1]);
-            
-
         }
         //Process distance sensor message
         if (message=="DISTANCE_SENSOR:GET")
@@ -152,6 +164,16 @@ public class RocketController : MonoBehaviour
             float distance = Mathf.Sqrt(x_diff * x_diff + y_diff * y_diff + z_diff * z_diff);
 
             float distanceMillimeters = distance * 1000;
+            //There is a 2% chance of an outlier, and a 5% chance of noise
+            if (UnityEngine.Random.value < 0.01f)
+            {
+                //Random range from 1000 to 10000
+                distanceMillimeters += UnityEngine.Random.Range(1000, 10000);
+            }
+            else if (UnityEngine.Random.value < 0.1f)
+            {
+                distanceMillimeters += UnityEngine.Random.Range(-100, 100);
+            }
 
             // Convert to uint16_t (ushort in C#)
             ushort distanceUInt16 = (ushort)distanceMillimeters;
@@ -190,9 +212,19 @@ public class RocketController : MonoBehaviour
                     var values = line.Split(',');
                     if (values.Length >= 2)
                     {
-                        float time = float.Parse(values[0]);
-                        float alt = float.Parse(values[1]) * 0.3048f; // Convert feet to meters
-                        positions.Add(new Vector3(time, alt, 0)); // Create a Vector3 with time as x and altitude as y
+                        try{
+                            float time = float.Parse(values[0]);
+                            float alt = float.Parse(values[1]) * 0.3048f; // Convert feet to meters
+                            if(filter.CheckOutlier(alt)){
+                                float filteredAlt = (float)filter.Update(alt);
+                                positions.Add(new Vector3(time, filteredAlt, 0)); // Create a Vector3 with time as x and altitude as y
+
+                            }
+
+                        }
+                        catch(Exception e){
+                            Debug.Log("Error parsing CSV data: " + e.Message);
+                        }
                     }
                 }
             }
