@@ -84,6 +84,7 @@ public class RocketController : MonoBehaviour
 
     void PayloadCouplerHandler()
     {
+        bool move=true;
         if (payloadCouplerDirection < 0)
         {
             // Accelerate towards negative direction, but cap at maxSpeed
@@ -105,8 +106,13 @@ public class RocketController : MonoBehaviour
             {
                 speed = Mathf.Min(0, speed + deceleration * Time.deltaTime);
             }
+            else if (speed == 0){
+                move = false;
+            }
         }
-
+        if(!move){
+            return;
+        }
         // Move the payload coupler based on the current speed
         Vector3 dir = payloadCoupler.transform.position - transform.position;
         payloadCoupler.transform.position += dir.normalized * Time.deltaTime * speed;
