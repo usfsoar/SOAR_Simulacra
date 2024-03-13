@@ -19,9 +19,7 @@ public class DroneSerialController : SerialController
 
     public static ConcurrentQueue<float> altitudeQueue = new ConcurrentQueue<float>();
 
-    public static ConcurrentQueue<float> accelerationQueue = new ConcurrentQueue<float>();
-
-    public static ConcurrentQueue<float> ang_accelerationQueue = new ConcurrentQueue<float>();
+    public static ConcurrentQueue<float> velocityQueue = new ConcurrentQueue<float>();
 
 
     public override async void ReadSerialAsync()
@@ -84,20 +82,20 @@ public class DroneSerialController : SerialController
                             }
                             break;
 
-                        case 0x03: // Request code for acceleration
+                        case 0x03: // Request code for velocity
                             if ((byte)serialPort.ReadByte() != 0x03)
                             {
-                                Debug.LogWarning("Invalid acceleration message");
+                                Debug.LogWarning("Invalid velocity message");
                                 break;
                             }
-                            messageQueue.Enqueue("FAKE_ACC:GET");
+                            messageQueue.Enqueue("FAKE_VEL:GET");
                             break;
 
-                        case 0x04: // Acceleration data message
+                        case 0x04: // Velocity data message
                             //confirm the message
                             if ((byte)serialPort.ReadByte() != 0x04)
                             {
-                                Debug.LogWarning("Invalid acceleration message");
+                                Debug.LogWarning("Invalid velocity message");
                                 break;
                             }
                             if (serialPort.BytesToRead >= 13) // Check if enough bytes are available
@@ -113,26 +111,26 @@ public class DroneSerialController : SerialController
 
                                     uiParamsQueue.Enqueue(new UIParams
                                     {
-                                        altitude = altitude,
-                                        maxAltitude = maxAltitude,
+                                        velocity = velocity,
                                         state = state.ToString(),
                                         outlier = outlier
                                     });
 
-                                    accelerationQueue.Enqueue(new float
+                                    velocityQueue.Enqueue(new float
                                     {
-                                        altitude = altitude,
-                                        maxAltitude = maxAltitude,
+                                        velocity = velocity,
                                         state = state.ToString(),
                                         outlier = outlier
                                     });
+
+                                    Debug.log("Velocity: " + velocity + "State: " + state + "Outlier: " + outlier);
                                 }
                             }
                             break;
 
-                        case 0x03: //Request code for distance
+                        case 0x10: //Request code for distance
                             //Confirm the message
-                            if ((byte)serialPort.ReadByte() != 0x03)
+                            if ((byte)serialPort.ReadByte() != 0x10)
                             {
                                 Debug.LogWarning("Invalid distance sensor message");
                                 break;
@@ -141,10 +139,10 @@ public class DroneSerialController : SerialController
                             messageQueue.Enqueue("DISTANCE_SENSOR:GET");
                             break;
 
-                        case 0x04://Distance data message
+                        case 0x11://Distance data message
                             //Confirm the message
                             byte confirmByte2 = (byte)serialPort.ReadByte();
-                            if (confirmByte2 != 0x04)
+                            if (confirmByte2 != 0x11)
                             {
                                 Debug.LogWarning("Invalid distance message");
                                 break;
@@ -156,9 +154,9 @@ public class DroneSerialController : SerialController
                             Debug.Log("Distance: " + distance);
                             break;
 
-                        case 0x05: // DC Motor Move Command
+                        case 0x15: // DC Motor Move Command
                             //Check for the second 0x04 byte confirming the message
-                            if ((byte)serialPort.ReadByte() != 0x05)
+                            if ((byte)serialPort.ReadByte() != 0x15)
                             {
                                 Debug.LogWarning("Invalid DC Motor message");
                                 break;
