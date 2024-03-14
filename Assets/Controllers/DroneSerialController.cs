@@ -15,11 +15,11 @@ public class DroneSerialController : SerialController
     // ConcurrentQueue for thread-safe communication
     public static ConcurrentQueue<string> messageQueue = new ConcurrentQueue<string>();
 
-    public static ConcurrentQueue<UIParams> uiParamsQueue = new ConcurrentQueue<UIParams>();
+    public static ConcurrentQueue<UIDroneParams> uiParamsQueue = new ConcurrentQueue<UIDroneParams>();
 
-    public static ConcurrentQueue<float> altitudeQueue = new ConcurrentQueue<float>();
+    public static ConcurrentQueue<string> altitudeQueue = new ConcurrentQueue<string>();
 
-    public static ConcurrentQueue<float> velocityQueue = new ConcurrentQueue<float>();
+    public static ConcurrentQueue<string> velocityQueue = new ConcurrentQueue<string>();
 
 
     public override async void ReadSerialAsync()
@@ -61,23 +61,16 @@ public class DroneSerialController : SerialController
                                     int state = BitConverter.ToInt32(buffer, 8);
                                     bool outlier = buffer[12] != 0; // Convert byte to bool
 
-                                    uiParamsQueue.Enqueue(new UIParams
+                                    uiParamsQueue.Enqueue(new UIDroneParams
                                     {
                                         altitude = altitude,
-                                        maxAltitude = maxAltitude,
-                                        state = state.ToString(),
+                                        ETState = state.ToString(),
                                         outlier = outlier
                                     });
 
-                                    altitudeQueue.Enqueue(new float
-                                    {
-                                        altitude = altitude,
-                                        maxAltitude = maxAltitude,
-                                        state = state.ToString(),
-                                        outlier = outlier
-                                    });
+                                    altitudeQueue.Enqueue("GET");
                                     
-                                    Debug.log("Altitude: " + altitude + "Max Altitude: " + maxAltitude + "State: " + state + "Outlier: " + outlier);
+                                    Debug.Log("Altitude: " + altitude + "Max Altitude: " + maxAltitude + "State: " + state + "Outlier: " + outlier);
                                 }
                             }
                             break;
@@ -88,7 +81,7 @@ public class DroneSerialController : SerialController
                                 Debug.LogWarning("Invalid velocity message");
                                 break;
                             }
-                            messageQueue.Enqueue("FAKE_VEL:GET");
+                            velocityQueue.Enqueue("GET");
                             break;
 
                         case 0x04: // Velocity data message

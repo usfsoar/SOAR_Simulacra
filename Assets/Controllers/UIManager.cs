@@ -11,12 +11,20 @@ public class UIParams
     public string state;
     public bool outlier;
 }
+public struct UIDroneParams
+{
+    public float velocity;
+    public float altitude;
+    public string ETState;
+    public bool outlier;
+}
 public class UIManager : MonoBehaviour
 {
     public TextMeshProUGUI altitudeValue;
     public TextMeshProUGUI stateValue;
     public TextMeshProUGUI maxAltitudeValue;
     public TextMeshProUGUI outlierValue;
+
     float lastOutlier = 0;
 
     void Update()
