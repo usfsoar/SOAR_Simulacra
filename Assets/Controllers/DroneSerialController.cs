@@ -97,26 +97,20 @@ public class DroneSerialController : SerialController
                                 int bytesRead = serialPort.Read(buffer, 0, buffer.Length);
                                 if (bytesRead == 13)
                                 {
-                                    float altitude = BitConverter.ToSingle(buffer, 0);
-                                    float maxAltitude = BitConverter.ToSingle(buffer, 4);
+                                    float velocity = BitConverter.ToSingle(buffer, 0);
                                     int state = BitConverter.ToInt32(buffer, 8);
                                     bool outlier = buffer[12] != 0; // Convert byte to bool
 
-                                    uiParamsQueue.Enqueue(new UIParams
+                                    uiParamsQueue.Enqueue(new UIDroneParams
                                     {
                                         velocity = velocity,
-                                        state = state.ToString(),
+                                        ETState = state.ToString(),
                                         outlier = outlier
                                     });
 
-                                    velocityQueue.Enqueue(new float
-                                    {
-                                        velocity = velocity,
-                                        state = state.ToString(),
-                                        outlier = outlier
-                                    });
+                                    velocityQueue.Enqueue("GET");
 
-                                    Debug.log("Velocity: " + velocity + "State: " + state + "Outlier: " + outlier);
+                                    Debug.Log("Velocity: " + velocity + "State: " + state + "Outlier: " + outlier);
                                 }
                             }
                             break;
