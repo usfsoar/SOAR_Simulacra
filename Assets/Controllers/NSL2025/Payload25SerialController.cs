@@ -131,7 +131,7 @@ public class Payload25SerialController : SerialController
         {
             case "ALT":
                 float altitude = rocketObject.transform.position.y;
-                if (UnityEngine.Random.value < 0.05f) altitude += 20;
+                // if (UnityEngine.Random.value < 0.05f) altitude += 20;
                 response = new byte[5];
                 response[0] = 0x03;
                 Array.Copy(BitConverter.GetBytes(altitude), 0, response, 1, 4);
