@@ -4,5 +4,11 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 0
+    path: Assets/Scenes/RocketSim.unity
+    guid: ea87abacd35c2b74c9d6fae3aa2b3c8b
+  - enabled: 1
+    path: Assets/Scenes/NSL25_SIM.unity
+    guid: 7a631405026a0084193c5463078230ed
   m_configObjects: {}

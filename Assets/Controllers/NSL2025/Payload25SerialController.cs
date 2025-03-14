@@ -4,6 +4,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 using System;
+using UnityEngine.Events;
+
+
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -13,11 +16,13 @@ public class Payload25SerialController : SerialController
 {
     public GameObject imu;
     public Payload25Controller payload;
-    
+
     // Concurrent Queues
     public static ConcurrentQueue<string> messageQueue = new ConcurrentQueue<string>();
     public static ConcurrentQueue<string> debugQueue = new ConcurrentQueue<string>();
     public static ConcurrentQueue<Tuple<int, int>> servoQueue = new ConcurrentQueue<Tuple<int, int>>();
+
+    
 
 
     private Vector3 lastVelocity = Vector3.zero;
@@ -32,7 +37,7 @@ public class Payload25SerialController : SerialController
                 {
                     byte messageType = (byte)serialPort.ReadByte();
                     byte messageType2;
-                    
+
                     switch (messageType)
                     {
                         case 0x03:
@@ -42,7 +47,9 @@ public class Payload25SerialController : SerialController
                                 case 0x01: messageQueue.Enqueue("ALT"); break;
                                 case 0x02: messageQueue.Enqueue("TMP"); break;
                                 case 0x03: messageQueue.Enqueue("PRS"); break;
-                                default: Debug.Log("FALSE Alarm: 0x03"); break;
+                                default:
+                                    DebugShortcut("FALSE Alarm: 0x03");
+                                    break;
                             }
                             break;
 
@@ -53,7 +60,7 @@ public class Payload25SerialController : SerialController
                                 case 0x01: messageQueue.Enqueue("ACC"); break;
                                 case 0x02: messageQueue.Enqueue("ACL"); break;
                                 case 0x03: messageQueue.Enqueue("GRV"); break;
-                                default: Debug.Log("FALSE Alarm: 0x04"); break;
+                                default: DebugShortcut("FALSE Alarm: 0x04"); break;
                             }
                             break;
 
@@ -79,14 +86,14 @@ public class Payload25SerialController : SerialController
                             break;
 
                         default:
-                            debugQueue.Enqueue("SERIAL " + (char)messageType + serialPort.ReadLine());
+                            debugQueue.Enqueue((char)messageType + serialPort.ReadLine());
                             break;
                     }
                 }
             }
             catch (System.Exception e)
             {
-                Debug.LogError(e.ToString());
+                DebugShortcut(e.ToString(), LogType.Error);
             }
             Thread.Sleep(1); // Small sleep to prevent tight looping
         }
@@ -103,20 +110,20 @@ public class Payload25SerialController : SerialController
         // Process debug messages
         while (debugQueue.TryDequeue(out string message))
         {
-            Debug.Log(message);
+            DebugShortcut("PYLD-SERIAL: " + message);
         }
         while (servoQueue.TryDequeue(out Tuple<int, int> servoData))
         {
             int servoNumber = servoData.Item1;
             int angle = servoData.Item2;
 
-            Debug.Log($"Servo {servoNumber} angle received: {angle}");
+            DebugShortcut($"Servo {servoNumber} angle received: {angle}");
             payload.RotateTo(servoNumber, angle);
         }
-        
+
     }
 
-    public void ProcessMessage(string message, Payload25SerialController plsc, GameObject imuObject, GameObject rocketObject)
+   public void ProcessMessage(string message, Payload25SerialController plsc, GameObject imuObject, GameObject rocketObject)
     {
         byte[] response;
 
@@ -184,8 +191,9 @@ public class Payload25SerialController : SerialController
                 break;
 
             default:
-                Debug.Log("Unknown message type: " + message);
+                DebugShortcut("Unknown message type: " + message, LogType.Warning);
                 break;
         }
     }
+    
 }

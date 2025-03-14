@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Events;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -24,13 +25,33 @@ public class SolidPropellantRocket : MonoBehaviour
     private float thrustDecayRate;
     private float elapsedTime;
     private bool launched = false; // Flag to check if the rocket has been launched
+    public UnityEvent<LogData> DebugLogEvent;
 
+    public void DebugShortcut(string msg, LogType logType = LogType.Default)
+    {
+        switch (logType)
+        {
+            case LogType.Default:
+                Debug.Log(msg);
+                break;
+            case LogType.Warning:
+                Debug.Log(msg);
+                break;
+            case LogType.Error:
+                Debug.Log(msg);
+                break;
+            default:
+                Debug.Log(msg);
+                break;
+        }
+        DebugLogEvent.Invoke(new LogData { message = msg, logType = logType });
+    }
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
         if (rb == null)
         {
-            Debug.LogError("Rigidbody component is missing!");
+            DebugShortcut("Rigidbody component is missing!", LogType.Error);
             enabled = false;
             return;
         }
@@ -42,7 +63,7 @@ public class SolidPropellantRocket : MonoBehaviour
     {
         if (launched)
         {
-            Debug.LogWarning("Rocket already launched!");
+            DebugShortcut("Rocket already launched!", LogType.Error);
             return;
         }
 
@@ -53,7 +74,7 @@ public class SolidPropellantRocket : MonoBehaviour
         rb.mass = rocketMass + fuelMass; // Set initial total mass
         rb.velocity = transform.right * initialHorizontalVelocity; // Apply initial horizontal speed
 
-        Debug.Log("🚀 LAUNCH!");
+        DebugShortcut("🚀 LAUNCH!");
     }
 
     void FixedUpdate()
@@ -110,7 +131,14 @@ public class SolidPropellantRocket : MonoBehaviour
     {
         dragMultiplier = Mathf.Clamp(dragMultiplier, 1f, 5f);
         dragCoefficient *= dragMultiplier;
-        Debug.Log($"Drag increased. New Drag Coefficient: {dragCoefficient}");
+        DebugShortcut($"Drag increased. New Drag Coefficient: {dragCoefficient}");
+    }
+    public void SetThrust(float newThrust){
+        initialThrust = newThrust;
+        DebugShortcut($"Set Thrust: {initialThrust}");
+    }
+    public void SetThrust(string newThrust){
+        SetThrust(float.Parse(newThrust));
     }
 }
 
