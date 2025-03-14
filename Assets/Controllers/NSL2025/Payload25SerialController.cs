@@ -17,12 +17,20 @@ public class Payload25SerialController : SerialController
     public GameObject imu;
     public Payload25Controller payload;
 
+    [Serializable]
+    struct AltimeterData
+    {
+        public int noise;
+        public float outlierChance;
+    };
+    AltimeterData altData = new AltimeterData{noise = 5, outlierChance=0.02f};
+
     // Concurrent Queues
     public static ConcurrentQueue<string> messageQueue = new ConcurrentQueue<string>();
     public static ConcurrentQueue<string> debugQueue = new ConcurrentQueue<string>();
     public static ConcurrentQueue<Tuple<int, int>> servoQueue = new ConcurrentQueue<Tuple<int, int>>();
 
-    
+
 
 
     private Vector3 lastVelocity = Vector3.zero;
@@ -123,7 +131,7 @@ public class Payload25SerialController : SerialController
 
     }
 
-   public void ProcessMessage(string message, Payload25SerialController plsc, GameObject imuObject, GameObject rocketObject)
+    public void ProcessMessage(string message, Payload25SerialController plsc, GameObject imuObject, GameObject rocketObject)
     {
         byte[] response;
 
@@ -138,7 +146,12 @@ public class Payload25SerialController : SerialController
         {
             case "ALT":
                 float altitude = rocketObject.transform.position.y;
-                // if (UnityEngine.Random.value < 0.05f) altitude += 20;
+                if (UnityEngine.Random.value < 0.2f) 
+                {
+                    float noise = altData.noise;
+                    altitude += (UnityEngine.Random.value < 0.5f) ? noise : -noise;
+                }
+                if (UnityEngine.Random.value < altData.outlierChance) altitude += UnityEngine.Random.Range(100, 1000);
                 response = new byte[5];
                 response[0] = 0x03;
                 Array.Copy(BitConverter.GetBytes(altitude), 0, response, 1, 4);
@@ -195,5 +208,46 @@ public class Payload25SerialController : SerialController
                 break;
         }
     }
-    
+    public void SetAltimeterNoise(int noise)
+    {
+        altData.noise = noise;
+        DebugShortcut($"Altimeter Noise Set to: +/- {altData.noise}");
+    }
+    public void SetAltimeterOutlierChance(float outlierChance)
+    {
+        altData.outlierChance = outlierChance;
+        DebugShortcut($"Altimeter Noise Set to: +/- {altData.outlierChance}");
+    }
+
+    public void SetAltimeterNoise(string noise)
+    {
+        if (int.TryParse(noise, out int parsedNoise))
+        {
+            SetAltimeterNoise(parsedNoise);
+        }
+        else
+        {
+            DebugShortcut($"Invalid altimeter noise value: {noise}", LogType.Error);
+        }
+    }
+
+    public void SetAltimeterOutlierChance(string outlierChance)
+    {
+        if (float.TryParse(outlierChance, out float parsedChance))
+        {
+            if (parsedChance >= 0f && parsedChance <= 1f)
+            {
+                SetAltimeterOutlierChance(parsedChance);
+            }
+            else
+            {
+                DebugShortcut($"Altimeter outlier chance must be between 0 and 1: {outlierChance}", LogType.Error);
+            }
+        }
+        else
+        {
+            DebugShortcut($"Invalid altimeter outlier chance value: {outlierChance}", LogType.Error);
+        }
+    }
+
 }
