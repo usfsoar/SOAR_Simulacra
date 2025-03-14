@@ -1,5 +1,7 @@
-
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 public class SolidPropellantRocket : MonoBehaviour
 {
@@ -21,13 +23,11 @@ public class SolidPropellantRocket : MonoBehaviour
     private float remainingFuelMass;
     private float thrustDecayRate;
     private float elapsedTime;
+    private bool launched = false; // Flag to check if the rocket has been launched
 
-    bool isGrounded = false;
-
-    void Start()
+    void Awake()
     {
         rb = GetComponent<Rigidbody>();
-
         if (rb == null)
         {
             Debug.LogError("Rigidbody component is missing!");
@@ -35,26 +35,35 @@ public class SolidPropellantRocket : MonoBehaviour
             return;
         }
 
-        // Initialize rocket parameters
+        rb.isKinematic = true; // Prevent movement until launch
+    }
+
+    public void Launch()
+    {
+        if (launched)
+        {
+            Debug.LogWarning("Rocket already launched!");
+            return;
+        }
+
+        launched = true;
+        rb.isKinematic = false; // Allow physics simulation
         remainingFuelMass = fuelMass;
         thrustDecayRate = initialThrust / burnTime;
-        rb.mass = rocketMass + fuelMass; // Total initial mass
+        rb.mass = rocketMass + fuelMass; // Set initial total mass
+        rb.velocity = transform.right * initialHorizontalVelocity; // Apply initial horizontal speed
 
-        // Set center of mass offset
-        rb.centerOfMass = centerOfMassOffset;
-
-        // Add initial horizontal velocity
-        rb.velocity = transform.right * initialHorizontalVelocity;
+        Debug.Log("🚀 LAUNCH!");
     }
 
     void FixedUpdate()
     {
+        if (!launched) return; // Don't update physics until launched
+
         if (elapsedTime < burnTime && remainingFuelMass > 0)
         {
             // Calculate current thrust
             float currentThrust = Mathf.Lerp(initialThrust, 0, elapsedTime / burnTime) * nozzleEfficiency;
-
-            // Apply thrust force along the rocket's forward direction
             Vector3 thrustForce = transform.up * currentThrust;
             rb.AddForce(thrustForce);
 
@@ -63,66 +72,62 @@ public class SolidPropellantRocket : MonoBehaviour
             Vector3 torque = Vector3.Cross(thrustPoint - rb.worldCenterOfMass, thrustForce);
             rb.AddTorque(torque);
 
-            // Update fuel mass and rocket mass
-            float fuelBurnRate = fuelMass / burnTime; // kg/s
+            // Update fuel mass
+            float fuelBurnRate = fuelMass / burnTime;
             float fuelBurned = fuelBurnRate * Time.fixedDeltaTime;
             remainingFuelMass -= fuelBurned;
-            remainingFuelMass = Mathf.Max(remainingFuelMass, 0); // Avoid negative fuel
+            remainingFuelMass = Mathf.Max(remainingFuelMass, 0);
             rb.mass = rocketMass + remainingFuelMass; // Update mass dynamically
 
-            // Increment elapsed time
             elapsedTime += Time.fixedDeltaTime;
         }
 
-        // Apply aerodynamic forces and wind only if above velocity threshold
         if (rb.velocity.magnitude > velocityThreshold)
         {
             ApplyDragForceAndTorque();
             rb.AddForce(windForce);
         }
-        else{
+        else
+        {
             rb.angularVelocity = Vector3.zero;
         }
     }
 
     void ApplyDragForceAndTorque()
     {
-        // Calculate drag force
         float velocity = rb.velocity.magnitude;
         float dragForceMagnitude = 0.5f * dragCoefficient * crossSectionalArea * velocity * velocity;
         Vector3 dragForce = -rb.velocity.normalized * dragForceMagnitude;
 
-        // Apply drag force at the center of pressure
         Vector3 dragPoint = transform.TransformPoint(centerOfPressureOffset);
         rb.AddForceAtPosition(dragForce, dragPoint);
 
-        // Calculate and apply torque from drag
         Vector3 torque = Vector3.Cross(dragPoint - rb.worldCenterOfMass, dragForce);
         rb.AddTorque(torque);
     }
 
-    bool IsGrounded()
-    {
-        RaycastHit hit;
-        return Physics.Raycast(transform.position, Vector3.down, out hit, 0.5f);
-    }
-
     public void IncreaseDrag(float dragMultiplier)
     {
-        // Ensure the drag multiplier is clamped to avoid invalid values
-        dragMultiplier = Mathf.Clamp(dragMultiplier, 1f, 5f); // Minimum is no change, maximum is 5x drag
-
-        // Increase the drag coefficient based on the multiplier
+        dragMultiplier = Mathf.Clamp(dragMultiplier, 1f, 5f);
         dragCoefficient *= dragMultiplier;
-
         Debug.Log($"Drag increased. New Drag Coefficient: {dragCoefficient}");
-    }
-
-
-    void Update()
-    {
-        // Debugging info
-        Debug.Log($"Time: {elapsedTime:F2}s, Fuel Mass: {remainingFuelMass:F2}kg, Velocity: {rb.velocity}, Grounded: {IsGrounded()}");
     }
 }
 
+#if UNITY_EDITOR
+[CustomEditor(typeof(SolidPropellantRocket))]
+public class SolidPropellantRocketEditor : Editor
+{
+    public override void OnInspectorGUI()
+    {
+        DrawDefaultInspector(); // Draw the default fields
+
+        SolidPropellantRocket rocket = (SolidPropellantRocket)target;
+
+        if (GUILayout.Button("🚀 LAUNCH!"))
+        {
+            rocket.Launch();
+        }
+    }
+}
+#endif

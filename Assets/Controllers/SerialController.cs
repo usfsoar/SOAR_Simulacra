@@ -26,11 +26,6 @@ public class SerialController : MonoBehaviour
         }
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
     /// private async void ReadSerialAsync() but as a virtual method
     public virtual void ReadSerialAsync()
     {

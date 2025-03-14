@@ -35,7 +35,7 @@ public class RocketSerialController : SerialController
     
                         case 0x03: // Altitude data message
                             //confirm the message
-                            if ((byte)serialPort.ReadByte() != 0x03)
+                            if ((byte)serialPort.ReadByte() != 0x01)
                             {
                                 Debug.LogWarning("Invalid altitude message");
                                 break;
@@ -147,7 +147,7 @@ public class RocketSerialController : SerialController
                             break;
                         default:
                             //Assume string message
-                            // Debug.Log("SERIAL: " + serialPort.ReadLine());
+                            Debug.Log("SERIAL: " + serialPort.ReadLine());
                             break;
                     }
                 }

@@ -137,7 +137,7 @@ public class RocketController : MonoBehaviour
                 // Round it
                 altitude = (float)Math.Round(altitude, 2);
                 //Add some noise and sometimes an outlier
-                //there's a 5% chance of an outlier
+                //there's a 2% chance of an outlier
                 //There's a 10% chance of noise
                 if (UnityEngine.Random.value < 0.02f)
                 {
@@ -149,12 +149,11 @@ public class RocketController : MonoBehaviour
                     altitude += UnityEngine.Random.Range(-10, 10);
                 }
 
-                // Save altitude to the log as floats
-                // serialLog.WriteData(new List<float> { Time.time, altitude });
                 byte[] altitudeBytes = BitConverter.GetBytes(altitude);
-                byte[] response = new byte[1 + altitudeBytes.Length];
-                response[0] = 0x02; // Response code for altitude
-                Array.Copy(altitudeBytes, 0, response, 1, altitudeBytes.Length);
+                byte[] response = new byte[2 + altitudeBytes.Length];
+                response[0] = 0x03; // Response code for altitude
+                response[1] = 0x02; // Response code for altitude
+                Array.Copy(altitudeBytes, 0, response, 2, altitudeBytes.Length);
                 serialController.WriteSerialAsync(response);
             }
         }
