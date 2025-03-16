@@ -23,7 +23,14 @@ public class Payload25SerialController : SerialController
         public int noise;
         public float outlierChance;
     };
-    AltimeterData altData = new AltimeterData{noise = 5, outlierChance=0.02f};
+    AltimeterData altData = new AltimeterData { noise = 5, outlierChance = 0.02f };
+
+    struct IMUModifications
+    {
+        public float noise;
+        public float outlierChance;
+    }
+    IMUModifications imuMods = new IMUModifications { noise = 0.5f, outlierChance = 0.05f };
 
     // Concurrent Queues
     public static ConcurrentQueue<string> messageQueue = new ConcurrentQueue<string>();
@@ -146,7 +153,7 @@ public class Payload25SerialController : SerialController
         {
             case "ALT":
                 float altitude = rocketObject.transform.position.y;
-                if (UnityEngine.Random.value < 0.2f) 
+                if (UnityEngine.Random.value < 0.2f)
                 {
                     float noise = altData.noise;
                     altitude += (UnityEngine.Random.value < 0.5f) ? noise : -noise;
@@ -176,6 +183,17 @@ public class Payload25SerialController : SerialController
 
             case "ACC": // Total acceleration (Linear Acceleration + Gravity)
                 Vector3 totalAcceleration = linearAcceleration + imuTf.rotation * Physics.gravity;
+                totalAcceleration += new Vector3(
+                    UnityEngine.Random.Range(-imuMods.noise, imuMods.noise),
+                    UnityEngine.Random.Range(-imuMods.noise, imuMods.noise),
+                    UnityEngine.Random.Range(-imuMods.noise, imuMods.noise)
+                );
+
+                if (UnityEngine.Random.value < imuMods.outlierChance)
+                {
+                    totalAcceleration *= UnityEngine.Random.Range(2f, 5f); // Create a large spike in data
+                }
+
                 response = new byte[13];
                 response[0] = 0x04;
                 Array.Copy(BitConverter.GetBytes(totalAcceleration.x), 0, response, 1, 4);
@@ -185,16 +203,37 @@ public class Payload25SerialController : SerialController
                 break;
 
             case "ACL": // Linear acceleration (gravity removed)
+                Vector3 noisyLinearAcc = linearAcceleration + new Vector3(
+                    UnityEngine.Random.Range(-imuMods.noise, imuMods.noise),
+                    UnityEngine.Random.Range(-imuMods.noise, imuMods.noise),
+                    UnityEngine.Random.Range(-imuMods.noise, imuMods.noise)
+                );
+
+                if (UnityEngine.Random.value < imuMods.outlierChance)
+                {
+                    noisyLinearAcc *= UnityEngine.Random.Range(2f, 5f);
+                }
+
                 response = new byte[13];
                 response[0] = 0x04;
-                Array.Copy(BitConverter.GetBytes(linearAcceleration.x), 0, response, 1, 4);
-                Array.Copy(BitConverter.GetBytes(linearAcceleration.y), 0, response, 5, 4);
-                Array.Copy(BitConverter.GetBytes(linearAcceleration.z), 0, response, 9, 4);
+                Array.Copy(BitConverter.GetBytes(noisyLinearAcc.x), 0, response, 1, 4);
+                Array.Copy(BitConverter.GetBytes(noisyLinearAcc.y), 0, response, 5, 4);
+                Array.Copy(BitConverter.GetBytes(noisyLinearAcc.z), 0, response, 9, 4);
                 plsc.WriteSerialAsync(response);
                 break;
 
             case "GRV": // Gravity relative to IMU orientation
-                Vector3 localGravity = imuTf.InverseTransformDirection(Physics.gravity);
+                Vector3 localGravity = imuTf.InverseTransformDirection(Physics.gravity) + new Vector3(
+                    UnityEngine.Random.Range(-imuMods.noise, imuMods.noise),
+                    UnityEngine.Random.Range(-imuMods.noise, imuMods.noise),
+                    UnityEngine.Random.Range(-imuMods.noise, imuMods.noise)
+                );
+
+                if (UnityEngine.Random.value < imuMods.outlierChance)
+                {
+                    localGravity *= UnityEngine.Random.Range(2f, 5f);
+                }
+
                 response = new byte[13];
                 response[0] = 0x04;
                 Array.Copy(BitConverter.GetBytes(localGravity.x), 0, response, 1, 4);
@@ -249,5 +288,48 @@ public class Payload25SerialController : SerialController
             DebugShortcut($"Invalid altimeter outlier chance value: {outlierChance}", LogType.Error);
         }
     }
+    public void SetIMUNoise(float noise)
+    {
+        imuMods.noise = noise;
+        DebugShortcut($"IMU Noise Set to: +/- {imuMods.noise}");
+    }
+
+    public void SetIMUOutlierChance(float chance)
+    {
+        if (chance >= 0f && chance <= 1f)
+        {
+            imuMods.outlierChance = chance;
+            DebugShortcut($"IMU Outlier Chance Set to: {imuMods.outlierChance * 100}%");
+        }
+        else
+        {
+            DebugShortcut($"IMU Outlier Chance must be between 0 and 1: {chance}", LogType.Error);
+        }
+    }
+
+    public void SetIMUNoise(string noise)
+    {
+        if (float.TryParse(noise, out float parsedNoise))
+        {
+            SetIMUNoise(parsedNoise);
+        }
+        else
+        {
+            DebugShortcut($"Invalid IMU noise value: {noise}", LogType.Error);
+        }
+    }
+
+    public void SetIMUOutlierChance(string chance)
+    {
+        if (float.TryParse(chance, out float parsedChance))
+        {
+            SetIMUOutlierChance(parsedChance);
+        }
+        else
+        {
+            DebugShortcut($"Invalid IMU outlier chance value: {chance}", LogType.Error);
+        }
+    }
+
 
 }
