@@ -258,6 +258,11 @@ public class Payload25SerialController : SerialController
         DebugShortcut($"Altimeter Noise Set to: +/- {altData.outlierChance}");
     }
 
+    public void SetAltimeterNoise(float noise)
+    {
+        SetAltimeterNoise((int)noise);
+    }
+
     public void SetAltimeterNoise(string noise)
     {
         if (int.TryParse(noise, out int parsedNoise))

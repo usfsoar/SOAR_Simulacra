@@ -12,6 +12,7 @@ public class SolidPropellantRocket : MonoBehaviour
     public float fuelMass = 5f;        // Mass of the fuel (kg)
     public float nozzleEfficiency = 0.9f; // Thrust efficiency
     public float dragCoefficient = 0.3f;  // Drag coefficient (dimensionless)
+    public Vector3 currentDrag;
     public float crossSectionalArea = 0.1f; // Cross-sectional area (m^2)
     public float gravity = 9.81f;          // Gravitational acceleration (m/s^2)
     public float initialHorizontalVelocity = 10f; // Horizontal speed (m/s)
@@ -26,6 +27,7 @@ public class SolidPropellantRocket : MonoBehaviour
     private float elapsedTime;
     private bool launched = false; // Flag to check if the rocket has been launched
     public UnityEvent<LogData> DebugLogEvent;
+    public float flaps_length=0;
 
     public void DebugShortcut(string msg, LogType logType = LogType.Default)
     {
@@ -116,9 +118,8 @@ public class SolidPropellantRocket : MonoBehaviour
 
     void ApplyDragForceAndTorque()
     {
-        float velocity = rb.velocity.magnitude;
-        float dragForceMagnitude = 0.5f * dragCoefficient * crossSectionalArea * velocity * velocity;
-        Vector3 dragForce = -rb.velocity.normalized * dragForceMagnitude;
+        float velocity = rb.velocity.y;
+        Vector3 dragForce = (-0.7207f + 0.05836f*velocity + 0.2469f*flaps_length + 0.00494f*(velocity*velocity) + -0.3308f*velocity*flaps_length + 17.65f*(flaps_length*flaps_length) + -0.0000009656f*(velocity*velocity*velocity) + 0.002397f*(velocity*velocity)*flaps_length + 0.373f*velocity*(flaps_length*flaps_length) + -22.71f*(flaps_length*flaps_length*flaps_length))* -rb.velocity.normalized;
 
         Vector3 dragPoint = transform.TransformPoint(centerOfPressureOffset);
         rb.AddForceAtPosition(dragForce, dragPoint);
@@ -127,11 +128,8 @@ public class SolidPropellantRocket : MonoBehaviour
         rb.AddTorque(torque);
     }
 
-    public void IncreaseDrag(float dragMultiplier)
-    {
-        dragMultiplier = Mathf.Clamp(dragMultiplier, 1f, 5f);
-        dragCoefficient *= dragMultiplier;
-        DebugShortcut($"Drag increased. New Drag Coefficient: {dragCoefficient}");
+    public void ChangeAirbrakesLength(float new_length){
+        flaps_length = new_length;
     }
     public void SetThrust(float newThrust){
         initialThrust = newThrust;

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using UnityEngine.Events;
 
 
 
@@ -12,10 +13,15 @@ public class Canvas25Controller : MonoBehaviour
     public Transform contentParent;
     public ScrollRect scrollObj;
 
+    public UnityEvent<float> onZeroErrors;
+
     public Color defaultColor = Color.white;
     public Color warningColor = Color.yellow;
     public Color errorColor = Color.red;
-    public void ReloadScene(){
+
+    public List<TMP_InputField> relevantInputs;
+    public void ReloadScene()
+    {
         GameManager.Instance.ReloadScene();
     }
 
@@ -61,5 +67,14 @@ public class Canvas25Controller : MonoBehaviour
         scrollRect.verticalNormalizedPosition = 0f; // Scroll to bottom
     }
 
+    public void ZeroErrors()
+    {
+        onZeroErrors?.Invoke(0);
+        foreach (TMP_InputField input in relevantInputs)
+        {
+            input.text = "0";
+        }
+
+    }
 
 }
